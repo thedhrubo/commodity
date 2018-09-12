@@ -184,7 +184,7 @@ class Welcome extends CI_Controller {
             $this->login();
         }
     }
-    
+
     public function fifteenth_analysisClosePrice2ndPhase() {
         $user_id = $this->session->userdata('user_id');
         if ($user_id) {
@@ -225,7 +225,14 @@ class Welcome extends CI_Controller {
         $difference = $postData['difference'];
         $parameter = array();
         $row = 0;
+        $params = '';
         foreach ($postData['open'] as $key => $open) {
+
+            if (!empty($params))
+                $params.='|' . $open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+            else
+                $params.=$open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+
             $row = $key + 1;
             $parameter['open'][$row] = $open;
             $parameter['high'][$row] = $postData['high'][$key];
@@ -235,6 +242,18 @@ class Welcome extends CI_Controller {
         $parameter['difference'] = $difference;
         $table_name = $postData['category_name'];
         $data['inputParameter'] = $parameter;
+        if ($this->uri->segment(3)) {
+            $page = ($this->uri->segment(3));
+        } else {
+            $page = 1;
+        }
+
+        $query = $this->m_common->get_total_matching_diff_full_query($parameter, $table_name, $row); // fethch the result depends on posted value
+
+        $sql = "CALL get_total_matching_diff_full('" . $query . "', $row, '" . $params . "',$page,150)";
+     //   echo $sql;exit;
+        $result = $this->db->query($sql);
+        $all_info = $result->result_array();
 
         /*
          * Implementing paging option
@@ -242,7 +261,7 @@ class Welcome extends CI_Controller {
         $this->load->library('pagination');
         $config = array();
         $config["base_url"] = base_url() . "/welcome/detailed_full_analysis";
-        $total_row = $this->m_common->get_total_matching_diff_full($parameter, $table_name, $row, 1);
+        $total_row = !empty($all_info) ? $all_info[0]['rowcount'] : '0';
         $config["total_rows"] = $total_row;
         $config["per_page"] = 150;
         $config['use_page_numbers'] = TRUE;
@@ -253,395 +272,11 @@ class Welcome extends CI_Controller {
         $config['prev_link'] = 'Previous';
 
         $this->pagination->initialize($config);
-        if ($this->uri->segment(3)) {
-            $page = ($this->uri->segment(3));
-        } else {
-            $page = 1;
-        }
-
-        $all_info = $this->m_common->get_total_matching_diff_full($parameter, $table_name, $row, 0, $config["per_page"], $page); // fethch the result depends on posted value
 
         $str_links = $this->pagination->create_links();
         $data["links"] = explode('&nbsp;', $str_links);
         $totalInputRow = count($parameter['open']);
-        $final_list = array();
-        if (count($all_info) > 0) { // check any data found
-            $total_deviation = 0;
-            foreach ($all_info as $key => $each_info) { // run a loop into all found data
-                $OutputDeviation = 0;
-                $count = 0;
-                foreach ($parameter['open'] as $inputKey => $inputVal) {
-//                    to find out the percentage deviations between open - open    
-                    foreach ($parameter['open'] as $input2ndKey => $input2ndVal) {
-                        if ($inputKey != $input2ndKey) {
-                            // for open price - open price : will not be applicable for 1st day open - 1st day open
-                            $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['open'][$input2ndKey]) / $parameter['open'][$inputKey])) * 100;
-                            $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['open_price_' . $input2ndKey]) / $each_info['open_price_' . $inputKey])) * 100;
-                            if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                                $OutputDeviation = $OutputDeviation + 100;
-                            } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                                $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                            } else {
-                                $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                            }
 
-
-//                            echo "==> open price - open price" . "<br>";
-//                            echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['open'][$input2ndKey] . "<br>";
-//                            echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['open_price_' . $input2ndKey] . " <br>";
-//                            echo "input Deviation: " . $inputDeviation . "<br>";
-//                            echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                            echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                            $count = $count + 1;
-                        }
-                    }
-//                    to find out the percentage deviations between open - high  
-                    foreach ($parameter['high'] as $input2ndKey => $input2ndVal) {
-                        // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
-                        $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['high'][$input2ndKey]) / $parameter['open'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['highest_price_' . $input2ndKey]) / $each_info['open_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> open price - high price" . "<br>";
-//                        echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['high'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['highest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                    to find out the percentage deviations between open - low 
-                    foreach ($parameter['low'] as $input2ndKey => $input2ndVal) {
-                        // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
-                        $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['low'][$input2ndKey]) / $parameter['open'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['lowest_price_' . $input2ndKey]) / $each_info['open_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> open price - low price" . "<br>";
-//                        echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['low'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['lowest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                    to find out the percentage deviations between open - close 
-                    foreach ($parameter['close'] as $input2ndKey => $input2ndVal) {
-                        // for open price - close price : will be applicable for 1st day open - 1st day close or 1st day open - 2nd day highest
-                        $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['close'][$input2ndKey]) / $parameter['open'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['closed_price_' . $input2ndKey]) / $each_info['open_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> open price - close price" . "<br>";
-//                        echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['close'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['closed_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                }
-
-                foreach ($parameter['high'] as $inputKey => $inputVal) {
-//                    to find out the percentage deviations between high - open
-                    foreach ($parameter['open'] as $input2ndKey => $input2ndVal) {
-
-                        // for high price - open price : will  be applicable for 1st day open - 1st day open or 1st day high - 2nd day high
-                        $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['open'][$input2ndKey]) / $parameter['high'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['open_price_' . $input2ndKey]) / $each_info['highest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> high price - open price" . "<br>";
-//                        echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['open'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['open_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                    to find out the percentage deviations between high - high
-                    foreach ($parameter['high'] as $input2ndKey => $input2ndVal) {
-                        // for highest price - highest price : will not be applicable for 1st day highest - 1st day highest 
-                        if ($inputKey != $input2ndKey) {
-                            $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['high'][$input2ndKey]) / $parameter['open'][$inputKey])) * 100;
-                            $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['highest_price_' . $input2ndKey]) / $each_info['open_price_' . $inputKey])) * 100;
-                            if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                                $OutputDeviation = $OutputDeviation + 100;
-                            } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                                $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                            } else {
-                                $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                            }
-
-//                            echo "==> high price - high price" . "<br>";
-//                            echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['high'][$input2ndKey] . "<br>";
-//                            echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['highest_price_' . $input2ndKey] . " <br>";
-//                            echo "input Deviation: " . $inputDeviation . "<br>";
-//                            echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                            echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                            $count = $count + 1;
-                        }
-                    }
-//                    to find out the percentage deviations between high - low
-                    foreach ($parameter['low'] as $input2ndKey => $input2ndVal) {
-                        // for high price - lowest price : will be applicable for 1st day high - 1st day lowest or 1st day high - 2nd day lowest
-                        $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['low'][$input2ndKey]) / $parameter['high'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['lowest_price_' . $input2ndKey]) / $each_info['highest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-//                        echo "==> high price - low price" . "<br>";
-//                        echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['low'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['lowest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                    to find out the percentage deviations between high - close
-                    foreach ($parameter['close'] as $input2ndKey => $input2ndVal) {
-                        // for high price - close price : will be applicable for 1st day high - 1st day close or 1st day high - 2nd day close
-                        $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['close'][$input2ndKey]) / $parameter['high'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['closed_price_' . $input2ndKey]) / $each_info['highest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> high price - close price" . "<br>";
-//                        echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['close'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                }
-
-                foreach ($parameter['low'] as $inputKey => $inputVal) {
-//                    to find out the percentage deviations between low - open
-                    foreach ($parameter['open'] as $input2ndKey => $input2ndVal) {
-
-                        // for low price - open price : will be applicable for 1st day low - 1st day open or 1st day low - 2nd day open
-                        $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['open'][$input2ndKey]) / $parameter['low'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['open_price_' . $input2ndKey]) / $each_info['lowest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> low price - open price" . "<br>";
-//                        echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['open'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['open_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                    to find out the percentage deviations between low - high
-                    foreach ($parameter['high'] as $input2ndKey => $input2ndVal) {
-                        // for low price - highest price : will be applicable for 1st day low - 1st day highest or 1st day low - 2nd day highest
-                        $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['high'][$input2ndKey]) / $parameter['low'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['highest_price_' . $input2ndKey]) / $each_info['lowest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> low price - high price" . "<br>";
-//                        echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['high'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['highest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-
-                    foreach ($parameter['low'] as $input2ndKey => $input2ndVal) {
-                        // for low price - lowest price : will be applicable for 1st day low - 1st day lowest or 1st day lowest - 2nd day lowest
-                        if ($inputKey != $input2ndKey) {
-                            $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['low'][$input2ndKey]) / $parameter['low'][$inputKey])) * 100;
-                            $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['lowest_price_' . $input2ndKey]) / $each_info['lowest_price_' . $inputKey])) * 100;
-                            if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                                $OutputDeviation = $OutputDeviation + 100;
-                            } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                                $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                            } else {
-                                $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                            }
-
-//                            echo "==> low price - high price" . "<br>";
-//                            echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['low'][$input2ndKey] . "<br>";
-//                            echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['lowest_price_' . $input2ndKey] . " <br>";
-//                            echo "input Deviation: " . $inputDeviation . "<br>";
-//                            echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                            echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                            $count = $count + 1;
-                        }
-                    }
-
-                    foreach ($parameter['close'] as $input2ndKey => $input2ndVal) {
-                        // for low price - close price : will be applicable for 1st day low - 1st day close or 1st day low - 2nd day close
-                        $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['close'][$input2ndKey]) / $parameter['low'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['closed_price_' . $input2ndKey]) / $each_info['lowest_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> low price - close price" . "<br>";
-//                        echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['close'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                }
-
-                foreach ($parameter['close'] as $inputKey => $inputVal) {
-//                  for close price - open price : will be applicable for 1st day close - 1st day open or 1st day close - 2nd day open
-                    foreach ($parameter['open'] as $input2ndKey => $input2ndVal) {
-
-                        // for open price - open price : will not be applicable for 1st day open - 1st day open
-                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['open'][$input2ndKey]) / $parameter['close'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['open_price_' . $input2ndKey]) / $each_info['closed_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> close price - open price" . "<br>";
-//                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['open'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['open_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                  for close price - high price : will be applicable for 1st day close - 1st day high or 1st day close - 2nd day high
-                    foreach ($parameter['high'] as $input2ndKey => $input2ndVal) {
-                        // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
-                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['high'][$input2ndKey]) / $parameter['close'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['highest_price_' . $input2ndKey]) / $each_info['closed_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> close price - high price" . "<br>";
-//                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['high'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['highest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-//                  for close price - low price : will be applicable for 1st day close - 1st day low or 1st day close - 2nd day low
-                    foreach ($parameter['low'] as $input2ndKey => $input2ndVal) {
-                        // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
-                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['low'][$input2ndKey]) / $parameter['close'][$inputKey])) * 100;
-                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['lowest_price_' . $input2ndKey]) / $each_info['closed_price_' . $inputKey])) * 100;
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-
-//                        echo "==> close price - low price" . "<br>";
-//                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['low'][$input2ndKey] . "<br>";
-//                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['lowest_price_' . $input2ndKey] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                    // for close price - close price : will not be applicable for 1st day close - 1st day close
-                    foreach ($parameter['close'] as $input2ndKey => $input2ndVal) {
-
-                        if ($inputKey != $input2ndKey) {
-                            $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['close'][$input2ndKey]) / $parameter['close'][$inputKey])) * 100;
-                            $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['closed_price_' . $input2ndKey]) / $each_info['closed_price_' . $inputKey])) * 100;
-                            if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                                $OutputDeviation = $OutputDeviation + 100;
-                            } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                                $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                            } else {
-                                $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                            }
-
-//                            echo "==> close price - close price" . "<br>";
-//                            echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['close'][$input2ndKey] . "<br>";
-//                            echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['closed_price_' . $input2ndKey] . " <br>";
-//                            echo "input Deviation: " . $inputDeviation . "<br>";
-//                            echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                            echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                            $count = $count + 1;
-                        }
-                    }
-                }
-//                echo $count."<br>";
-//                echo $OutputDeviation/$count;
-//                exit(1);
-
-                $all_info[$key]['deviation'] = $OutputDeviation / $count;
-            }
-        }
-
-
-        usort($all_info, function($a, $b) {
-            if ($a['deviation'] == $b['deviation'])
-                return 0;
-            return ($a['deviation'] > $b['deviation']) ? -1 : 1;
-        });
 
         $data['date_array'] = $all_info;
         $data['row'] = $totalInputRow;
@@ -651,9 +286,8 @@ class Welcome extends CI_Controller {
         $this->load->view("v_list_analysis", $data); // load all data into a view file
     }
 
-
     /*
-     * .
+     * 
      * 
      * @ This is the function for fifteenth matches Module calculation. Comparing the matched between the last input days closed price with others
      * @ Author dhrubo Saha
@@ -682,7 +316,14 @@ class Welcome extends CI_Controller {
         $difference = $postData['difference'];
         $parameter = array();
         $row = 0;
+        $params = '';
         foreach ($postData['open'] as $key => $open) {
+
+            if (!empty($params))
+                $params.='|' . $open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+            else
+                $params.=$open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+
             $row = $key + 1;
             $parameter['open'][$row] = $open;
             $parameter['high'][$row] = $postData['high'][$key];
@@ -700,7 +341,7 @@ class Welcome extends CI_Controller {
         $this->load->library('pagination');
         $config = array();
         $config["base_url"] = base_url() . "/welcome/detailed_fifteenth_analysis_closePrice";
-        $total_row = $this->m_common->get_total_matching_diff_full($parameter, $table_name, $row, 1);
+        $total_row = $this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
         $config["total_rows"] = $total_row;
         $config["per_page"] = 150;
         $config['use_page_numbers'] = TRUE;
@@ -717,148 +358,153 @@ class Welcome extends CI_Controller {
             $page = 1;
         }
 
-        $all_info = $this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 0, $config["per_page"], $page); // fethch the result depends on posted value
+        //    $all_info = $this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 0, $config["per_page"], $page); // fethch the result depends on posted value
+
+
+        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,".$config["per_page"].")";
+        $result = $this->db->query($sql);
+        $all_info = $result->result_array();
 
         $str_links = $this->pagination->create_links();
         $data["links"] = explode('&nbsp;', $str_links);
         $totalInputRow = count($parameter['open']);
-        $final_list = array();
-        if (count($all_info) > 0) { // check any data found
-            $total_deviation = 0;
-            foreach ($all_info as $key => $each_info) { // run a loop into all found data
-                $OutputDeviation = 0;
-                $count = 0;
-//                    to find out the percentage deviations between open - last close    
-                foreach ($parameter['open'] as $inputKey => $input2ndVal) {
-                    // for open price - open price : will not be applicable for 1st day open - 1st day open
-                    $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
-
-
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-
-
-
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-//                    echo "==> open price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - high  
-                foreach ($parameter['high'] as $inputKey => $input2ndVal) {
-                    // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
-                    $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-//                    echo "==> high price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - low 
-                foreach ($parameter['low'] as $inputKey => $input2ndVal) {
-                    // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
-                    $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-//                    echo "==> low price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - close 
-                foreach ($parameter['close'] as $inputKey => $input2ndVal) {
-                    if ($inputKey != $totalInputRow) {
-                        // for open price - close price : will be applicable for 1st day open - 1st day close or 1st day open - 2nd day highest
-                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//        $final_list = array();
+//        if (count($all_info) > 0) { // check any data found
+//            $total_deviation = 0;
+//            foreach ($all_info as $key => $each_info) { // run a loop into all found data
+//                $OutputDeviation = 0;
+//                $count = 0;
+////                    to find out the percentage deviations between open - last close    
+//                foreach ($parameter['open'] as $inputKey => $input2ndVal) {
+//                    // for open price - open price : will not be applicable for 1st day open - 1st day open
+//                    $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//
+//
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
 //                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-//                        echo "==> close price - final day closed price" . "<br>";
-//                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                }
-
-//                echo $count;
-//                echo $OutputDeviation/15;
-//                exit(1);
-
-                $all_info[$key]['deviation'] = $OutputDeviation / $count;
-
-
-//                $total_deviation = 0;
-//                foreach ($parameter['open'] as $r => $p) { // run a loop for number of entered day
-//                    $nxt = $r + 1;
-//                    $final_list[$each_info['id_1']]['date_' . $r] = $each_info['stock_date_' . $r];
-//                    if (count($parameter['open']) != $r) {
-//                        $dev = 0;
-//                        $dev += ((($each_info['open_price_' . $nxt] - $each_info['open_price_' . $r]) / $each_info['open_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['highest_price_' . $nxt] - $each_info['highest_price_' . $r]) / $each_info['highest_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['lowest_price_' . $nxt] - $each_info['lowest_price_' . $r]) / $each_info['lowest_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['closed_price_' . $nxt] - $each_info['closed_price_' . $r]) / $each_info['closed_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $total_deviation += $dev;
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+//
+//
+//
+////                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+////                    echo "==> open price - final day closed price" . "<br>";
+////                    echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
+////                    echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
+////                    echo "input Deviation: " . $inputDeviation . "<br>";
+////                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
+////                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - high  
+//                foreach ($parameter['high'] as $inputKey => $input2ndVal) {
+//                    // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
+//                    $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+////                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+////                    echo "==> high price - final day closed price" . "<br>";
+////                    echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
+////                    echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
+////                    echo "input Deviation: " . $inputDeviation . "<br>";
+////                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
+////                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - low 
+//                foreach ($parameter['low'] as $inputKey => $input2ndVal) {
+//                    // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
+//                    $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+////                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+////                    echo "==> low price - final day closed price" . "<br>";
+////                    echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
+////                    echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
+////                    echo "input Deviation: " . $inputDeviation . "<br>";
+////                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
+////                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - close 
+//                foreach ($parameter['close'] as $inputKey => $input2ndVal) {
+//                    if ($inputKey != $totalInputRow) {
+//                        // for open price - close price : will be applicable for 1st day open - 1st day close or 1st day open - 2nd day highest
+//                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+////                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                            $OutputDeviation = $OutputDeviation + 100;
+//                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                        } else {
+//                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                        }
+////                        echo "==> close price - final day closed price" . "<br>";
+////                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
+////                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
+////                        echo "input Deviation: " . $inputDeviation . "<br>";
+////                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
+////                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
+//                        $count = $count + 1;
 //                    }
 //                }
-//                if (count($parameter['open']) == 1)
-//                    $deviation = round($total_deviation, 2);
-//                else
-//                    $deviation = round($total_deviation, 2) / (count($parameter['open']) - 1);
-//                $final_list[$each_info['id_1']]['deviation'] = $deviation;
-//                $final_list[$each_info['id_1']]['sellmonth'] = $each_info['sellmonth'];
-//                $final_list[$each_info['id_1']]['sellyear'] = $each_info['sellyear'];
-            }
-        }
-
-
-        usort($all_info, function($a, $b) {
-            if ($a['deviation'] == $b['deviation'])
-                return 0;
-            return ($a['deviation'] > $b['deviation']) ? -1 : 1;
-        });
+//
+////                echo $count;
+////                echo $OutputDeviation/15;
+////                exit(1);
+//
+//                $all_info[$key]['deviation'] = $OutputDeviation / $count;
+//
+//
+////                $total_deviation = 0;
+////                foreach ($parameter['open'] as $r => $p) { // run a loop for number of entered day
+////                    $nxt = $r + 1;
+////                    $final_list[$each_info['id_1']]['date_' . $r] = $each_info['stock_date_' . $r];
+////                    if (count($parameter['open']) != $r) {
+////                        $dev = 0;
+////                        $dev += ((($each_info['open_price_' . $nxt] - $each_info['open_price_' . $r]) / $each_info['open_price_' . $nxt]) * 100); // calculate deviation from another function
+////                        $dev += ((($each_info['highest_price_' . $nxt] - $each_info['highest_price_' . $r]) / $each_info['highest_price_' . $nxt]) * 100); // calculate deviation from another function
+////                        $dev += ((($each_info['lowest_price_' . $nxt] - $each_info['lowest_price_' . $r]) / $each_info['lowest_price_' . $nxt]) * 100); // calculate deviation from another function
+////                        $dev += ((($each_info['closed_price_' . $nxt] - $each_info['closed_price_' . $r]) / $each_info['closed_price_' . $nxt]) * 100); // calculate deviation from another function
+////                        $total_deviation += $dev;
+////                    }
+////                }
+////                if (count($parameter['open']) == 1)
+////                    $deviation = round($total_deviation, 2);
+////                else
+////                    $deviation = round($total_deviation, 2) / (count($parameter['open']) - 1);
+////                $final_list[$each_info['id_1']]['deviation'] = $deviation;
+////                $final_list[$each_info['id_1']]['sellmonth'] = $each_info['sellmonth'];
+////                $final_list[$each_info['id_1']]['sellyear'] = $each_info['sellyear'];
+//            }
+//        }
+//
+//
+//        usort($all_info, function($a, $b) {
+//            if ($a['deviation'] == $b['deviation'])
+//                return 0;
+//            return ($a['deviation'] > $b['deviation']) ? -1 : 1;
+//        });
 
         $data['date_array'] = $all_info;
         $data['row'] = $totalInputRow;
@@ -884,8 +530,7 @@ class Welcome extends CI_Controller {
 
         $this->load->view("v_list_analysis", $data); // load all data into a view file
     }
-    
-    
+
     /*
      * .
      * 
@@ -915,14 +560,19 @@ class Welcome extends CI_Controller {
 
         $parameter = array();
         $row = 0;
+        $params = '';
         foreach ($postData['open'] as $key => $open) {
+            if (!empty($params))
+                $params.='|' . $open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+            else
+                $params.=$open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
             $row = $key + 1;
             $parameter['open'][$row] = $open;
             $parameter['high'][$row] = $postData['high'][$key];
             $parameter['low'][$row] = $postData['low'][$key];
             $parameter['close'][$row] = $postData['close'][$key];
         }
-        
+
         $parameter['difference_1'] = $postData['difference_1'];
         $parameter['difference_2'] = $postData['difference_2'];
         $table_name = $postData['category_name'];
@@ -952,148 +602,109 @@ class Welcome extends CI_Controller {
             $page = 1;
         }
 
-        $all_info = $this->m_common->get_15_matching_diff_last_Close2ndPhase($parameter, $table_name, $row, 0, $config["per_page"], $page); // fethch the result depends on posted value
-
+        $sql = "CALL sp_getresult('" . $postData['category_name'] . "', $row, '" . $params . "'," . $postData['difference_1'] . "," . $postData['difference_2'] . ",$page,150)";
+        $result = $this->db->query($sql);
+        $all_info = $result->result_array();
+//echo count($all_info);exit;
         $str_links = $this->pagination->create_links();
         $data["links"] = explode('&nbsp;', $str_links);
         $totalInputRow = count($parameter['open']);
-        $final_list = array();
-        if (count($all_info) > 0) { // check any data found
-            $total_deviation = 0;
-            foreach ($all_info as $key => $each_info) { // run a loop into all found data
-                $OutputDeviation = 0;
-                $count = 0;
-//                    to find out the percentage deviations between open - last close    
-                foreach ($parameter['open'] as $inputKey => $input2ndVal) {
-                    // for open price - open price : will not be applicable for 1st day open - 1st day open
-                    $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
 
 
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-
-
-
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-//                    echo "==> open price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['open'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['open_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - high  
-                foreach ($parameter['high'] as $inputKey => $input2ndVal) {
-                    // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
-                    $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-//                    echo "==> high price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['high'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['highest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - low 
-                foreach ($parameter['low'] as $inputKey => $input2ndVal) {
-                    // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
-                    $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                    $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
-//                    $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-
-                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                        $OutputDeviation = $OutputDeviation + 100;
-                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                    } else {
-                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                    }
-//                    echo "==> low price - final day closed price" . "<br>";
-//                    echo "input parameters : " . $parameter['low'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                    echo "output parameters : " . $each_info['lowest_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                    echo "input Deviation: " . $inputDeviation . "<br>";
-//                    echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                    echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                    $count = $count + 1;
-                }
-//                    to find out the percentage deviations between open - close 
-                foreach ($parameter['close'] as $inputKey => $input2ndVal) {
-                    if ($inputKey != $totalInputRow) {
-                        // for open price - close price : will be applicable for 1st day open - 1st day close or 1st day open - 2nd day highest
-                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
-                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//        $query = $this->m_common->get_15_matching_diff_last_Close2ndPhase($parameter, $table_name, $row, 0, $config["per_page"], $page); // fethch the result depends on posted value
+//
+//        echo $query;
+//        exit;
+//        $sql = "CALL `sp_fetch_row`(?,?)";
+//        $result = $this->db->query($sql, array('select_param' => $query['select'], 'where_param' => $query['where']));
+//
+//        //     $all_info_new = $this->m_common->customeQuery("call sp_fetch_row('$query')");
+//        exit;
+//        $str_links = $this->pagination->create_links();
+//        $data["links"] = explode('&nbsp;', $str_links);
+//        $totalInputRow = count($parameter['open']);
+//        $final_list = array();
+//        if (count($all_info) > 0) { // check any data found
+//            $total_deviation = 0;
+//            foreach ($all_info as $key => $each_info) { // run a loop into all found data
+//                $OutputDeviation = 0;
+//                $count = 0;
+////                    to find out the percentage deviations between open - last close    
+//                foreach ($parameter['open'] as $inputKey => $input2ndVal) {
+//                    // for open price - open price : will not be applicable for 1st day open - 1st day open
+//                    $inputDeviation = abs((($parameter['open'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['open_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//
+//
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
 //                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
-                            $OutputDeviation = $OutputDeviation + 100;
-                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
-                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
-                        } else {
-                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
-                        }
-//                        echo "==> close price - final day closed price" . "<br>";
-//                        echo "input parameters : " . $parameter['close'][$inputKey] . " And " . $parameter['close'][$totalInputRow] . "<br>";
-//                        echo "output parameters : " . $each_info['closed_price_' . $inputKey] . " And " . $each_info['closed_price_' . $totalInputRow] . " <br>";
-//                        echo "input Deviation: " . $inputDeviation . "<br>";
-//                        echo "temporary output deviation : " . $tempOutputDeviation . "<br>";
-//                        echo "Cumulative output deviation : " . $OutputDeviation . "<br>";
-                        $count = $count + 1;
-                    }
-                }
-
-//                echo $count;
-//                echo $OutputDeviation/15;
-//                exit(1);
-
-                $all_info[$key]['deviation'] = $OutputDeviation / $count;
-
-
-//                $total_deviation = 0;
-//                foreach ($parameter['open'] as $r => $p) { // run a loop for number of entered day
-//                    $nxt = $r + 1;
-//                    $final_list[$each_info['id_1']]['date_' . $r] = $each_info['stock_date_' . $r];
-//                    if (count($parameter['open']) != $r) {
-//                        $dev = 0;
-//                        $dev += ((($each_info['open_price_' . $nxt] - $each_info['open_price_' . $r]) / $each_info['open_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['highest_price_' . $nxt] - $each_info['highest_price_' . $r]) / $each_info['highest_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['lowest_price_' . $nxt] - $each_info['lowest_price_' . $r]) / $each_info['lowest_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $dev += ((($each_info['closed_price_' . $nxt] - $each_info['closed_price_' . $r]) / $each_info['closed_price_' . $nxt]) * 100); // calculate deviation from another function
-//                        $total_deviation += $dev;
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+//
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - high  
+//                foreach ($parameter['high'] as $inputKey => $input2ndVal) {
+//                    // for open price - highest price : will be applicable for 1st day open - 1st day highest or 1st day open - 2nd day highest
+//                    $inputDeviation = abs((($parameter['high'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['highest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+//
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - low 
+//                foreach ($parameter['low'] as $inputKey => $input2ndVal) {
+//                    // for open price - lowest price : will be applicable for 1st day open - 1st day lowest or 1st day open - 2nd day lowest
+//                    $inputDeviation = abs((($parameter['low'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                    $tempOutputDeviation = abs((($each_info['lowest_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//
+//                    if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                        $OutputDeviation = $OutputDeviation + 100;
+//                    } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                    } else {
+//                        $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                    }
+//
+//                    $count = $count + 1;
+//                }
+////                    to find out the percentage deviations between open - close 
+//                foreach ($parameter['close'] as $inputKey => $input2ndVal) {
+//                    if ($inputKey != $totalInputRow) {
+//                        $inputDeviation = abs((($parameter['close'][$inputKey] - $parameter['close'][$totalInputRow]) / $parameter['close'][$totalInputRow])) * 100;
+//                        $tempOutputDeviation = abs((($each_info['closed_price_' . $inputKey] - $each_info['closed_price_' . $totalInputRow]) / $each_info['closed_price_' . $totalInputRow])) * 100;
+//                        if ($inputDeviation == 0 && $tempOutputDeviation == 0) {
+//                            $OutputDeviation = $OutputDeviation + 100;
+//                        } else if (max($inputDeviation, $tempOutputDeviation) != 0) {
+//                            $OutputDeviation = $OutputDeviation + (100 - ((max($inputDeviation, $tempOutputDeviation) - min($inputDeviation, $tempOutputDeviation)) / max($inputDeviation, $tempOutputDeviation)) * 100);
+//                        } else {
+//                            $OutputDeviation = $OutputDeviation + (100 - ((min($inputDeviation, $tempOutputDeviation) - max($inputDeviation, $tempOutputDeviation)) / min($inputDeviation, $tempOutputDeviation)) * 100);
+//                        }
+//                        $count = $count + 1;
 //                    }
 //                }
-//                if (count($parameter['open']) == 1)
-//                    $deviation = round($total_deviation, 2);
-//                else
-//                    $deviation = round($total_deviation, 2) / (count($parameter['open']) - 1);
-//                $final_list[$each_info['id_1']]['deviation'] = $deviation;
-//                $final_list[$each_info['id_1']]['sellmonth'] = $each_info['sellmonth'];
-//                $final_list[$each_info['id_1']]['sellyear'] = $each_info['sellyear'];
-            }
-        }
-
-
-        usort($all_info, function($a, $b) {
-            if ($a['deviation'] == $b['deviation'])
-                return 0;
-            return ($a['deviation'] > $b['deviation']) ? -1 : 1;
-        });
+//
+//                $all_info[$key]['deviation'] = $OutputDeviation / $count;
+//            }
+//        }
+//
+//
+//        usort($all_info, function($a, $b) {
+//            if ($a['deviation'] == $b['deviation'])
+//                return 0;
+//            return ($a['deviation'] > $b['deviation']) ? -1 : 1;
+//        });
 
         $data['date_array'] = $all_info;
         $data['row'] = $totalInputRow;

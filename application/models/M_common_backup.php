@@ -100,7 +100,7 @@ class M_common extends CI_Model {
         }
 //echo $query;exit;
         $query = $this->db->query($query);
-        //    $last_query = $this->db->last_query();
+        $last_query = $this->db->last_query();
 //        echo $last_query;
 //        exit;
         if ($count == 0) {
@@ -110,79 +110,6 @@ class M_common extends CI_Model {
             $numRows = $query->num_rows();
             return $numRows;
         }
-    }
-
-    function get_total_matching_diff_full_query($parameter, $table_name, $row) {
-        $difference = $parameter['difference']; // tacking the difference from the $paramaeter array
-        $select = "SELECT";
-        $from = ' FROM ';
-        $where = ' WHERE';
-        $open = $parameter['open']; // tacking the open values from the $paramaeter array
-        $high = $parameter['high']; // tacking the high values from the $paramaeter array
-        $low = $parameter['low']; // tacking the low values from the $paramaeter array
-        $close = $parameter['close']; // tacking the close values from the $paramaeter array
-        $otherWhere = '';
-        $yearWhere = '';
-        for ($i = 1; $i <= $row; $i++) { // run a loop for number of days entered
-            $nextRow = $i + 1; // taking the next row
-            if ($i == 1)  // checking if this is first row for making decision that it will include comma or not as because this is dynamic query generation
-                $select.=" s$i.id as id_$i,s$i.open_price as open_price_$i,s$i.highest_price as highest_price_$i,s$i.lowest_price as lowest_price_$i, s$i.closed_price as closed_price_$i, s$i.stockdate as stock_date_$i";
-            else
-                $select.=" ,s$i.id as id_$i,s$i.open_price as open_price_$i,s$i.highest_price as highest_price_$i,s$i.lowest_price as lowest_price_$i, s$i.closed_price as closed_price_$i, s$i.stockdate as stock_date_$i";
-            if ($i == 1) // checking if this is first row for making decision that it will include comma or not as because this is dynamic query generation
-                $from.=$table_name . ' as s' . $i . ' ';
-            else
-                $from.=' ,' . $table_name . ' as s' . $i . ' ';
-
-            foreach ($open as $ii => $op) { // run a loop for number of opening for generate all possible combination with opening value with others for where codition
-                if ($ii == 1 && $i == 1) // checking is this the first row of main loop and the the first row for inner loop
-                    $where.= " (((s$i.open_price - s$ii.highest_price)/s$i.open_price)*100) BETWEEN " . (((($parameter['open'][$i] - $parameter['high'][$ii]) / $parameter['open'][$i]) * 100) - $difference) . " AND " . (((($parameter['open'][$i] - $parameter['high'][$ii]) / $parameter['open'][$i]) * 100) + $difference) . "";
-                else
-                    $where.= " AND (((s$i.open_price - s$ii.highest_price)/s$i.open_price)*100) BETWEEN " . (((($parameter['open'][$i] - $parameter['high'][$ii]) / $parameter['open'][$i]) * 100) - $difference) . " AND " . (((($parameter['open'][$i] - $parameter['high'][$ii]) / $parameter['open'][$i]) * 100) + $difference) . "";
-                if ($i != $ii) // skip the combination with own
-                    $where.= " AND (((s$i.open_price - s$ii.open_price)/s$i.open_price)*100) BETWEEN " . (((($parameter['open'][$i] - $parameter['open'][$ii]) / $parameter['open'][$i]) * 100) - $difference) . " AND " . (((($parameter['open'][$i] - $parameter['open'][$ii]) / $parameter['open'][$i]) * 100) + $difference) . "";
-                $where.= " AND (((s$i.open_price - s$ii.lowest_price)/s$i.open_price)*100) BETWEEN " . (((($parameter['open'][$i] - $parameter['low'][$ii]) / $parameter['open'][$i]) * 100) - $difference) . " AND " . (((($parameter['open'][$i] - $parameter['low'][$ii]) / $parameter['open'][$i]) * 100) + $difference) . "";
-                $where.= " AND (((s$i.open_price - s$ii.closed_price)/s$i.open_price)*100) BETWEEN " . (((($parameter['open'][$i] - $parameter['close'][$ii]) / $parameter['open'][$i]) * 100) - $difference) . " AND " . (((($parameter['open'][$i] - $parameter['close'][$ii]) / $parameter['open'][$i]) * 100) + $difference) . "";
-            }
-            foreach ($high as $ii => $hg) { // run a loop for number of high for generate all possible combination with high value with others for where codition
-                if ($i != $ii) // skip the combination with own
-                    $where.= " AND (((s$i.highest_price - s$ii.highest_price)/s$i.highest_price)*100) BETWEEN " . (((($parameter['high'][$i] - $parameter['high'][$ii]) / $parameter['high'][$i]) * 100) - $difference) . " AND " . (((($parameter['high'][$i] - $parameter['high'][$ii]) / $parameter['high'][$i]) * 100) + $difference) . "";
-
-                $where.= " AND (((s$i.highest_price - s$ii.open_price)/s$i.highest_price)*100) BETWEEN " . (((($parameter['high'][$i] - $parameter['open'][$ii]) / $parameter['high'][$i]) * 100) - $difference) . " AND " . (((($parameter['high'][$i] - $parameter['open'][$ii]) / $parameter['high'][$i]) * 100) + $difference) . "";
-
-                $where.= " AND (((s$i.highest_price - s$ii.lowest_price)/s$i.highest_price)*100) BETWEEN " . (((($parameter['high'][$i] - $parameter['low'][$ii]) / $parameter['high'][$i]) * 100) - $difference) . " AND " . (((($parameter['high'][$i] - $parameter['low'][$ii]) / $parameter['high'][$i]) * 100) + $difference) . "";
-                $where.= " AND (((s$i.highest_price - s$ii.closed_price)/s$i.highest_price)*100) BETWEEN " . (((($parameter['high'][$i] - $parameter['close'][$ii]) / $parameter['high'][$i]) * 100) - $difference) . " AND " . (((($parameter['high'][$i] - $parameter['close'][$ii]) / $parameter['high'][$i]) * 100) + $difference) . "";
-            }
-            foreach ($low as $ii => $lw) {
-                if ($i != $ii) // skip the combination with own
-                    $where.= " AND (((s$i.lowest_price - s$ii.lowest_price)/s$i.lowest_price)*100) BETWEEN " . (((($parameter['low'][$i] - $parameter['low'][$ii]) / $parameter['low'][$i]) * 100) - $difference) . " AND " . (((($parameter['low'][$i] - $parameter['low'][$ii]) / $parameter['low'][$i]) * 100) + $difference) . "";
-
-                $where.= " AND (((s$i.lowest_price - s$ii.open_price)/s$i.lowest_price)*100) BETWEEN " . (((($parameter['low'][$i] - $parameter['open'][$ii]) / $parameter['low'][$i]) * 100) - $difference) . " AND " . (((($parameter['low'][$i] - $parameter['open'][$ii]) / $parameter['low'][$i]) * 100) + $difference) . "";
-
-                $where.= " AND (((s$i.lowest_price - s$ii.highest_price)/s$i.lowest_price)*100) BETWEEN " . (((($parameter['low'][$i] - $parameter['high'][$ii]) / $parameter['low'][$i]) * 100) - $difference) . " AND " . (((($parameter['low'][$i] - $parameter['high'][$ii]) / $parameter['low'][$i]) * 100) + $difference) . "";
-                $where.= " AND (((s$i.lowest_price - s$ii.closed_price)/s$i.lowest_price)*100) BETWEEN " . (((($parameter['low'][$i] - $parameter['close'][$ii]) / $parameter['low'][$i]) * 100) - $difference) . " AND " . (((($parameter['low'][$i] - $parameter['close'][$ii]) / $parameter['low'][$i]) * 100) + $difference) . "";
-            }
-            foreach ($close as $ii => $cl) {
-                if ($i != $ii) // skip the combination with own
-                    $where.= " AND (((s$i.closed_price - s$ii.closed_price)/s$i.closed_price)*100) BETWEEN " . (((($parameter['close'][$i] - $parameter['close'][$ii]) / $parameter['close'][$i]) * 100) - $difference) . " AND " . (((($parameter['close'][$i] - $parameter['close'][$ii]) / $parameter['close'][$i]) * 100) + $difference) . "";
-
-
-                $where.= " AND (((s$i.closed_price - s$ii.highest_price)/s$i.closed_price)*100) BETWEEN " . (((($parameter['close'][$i] - $parameter['high'][$ii]) / $parameter['close'][$i]) * 100) - $difference) . " AND " . (((($parameter['close'][$i] - $parameter['high'][$ii]) / $parameter['close'][$i]) * 100) + $difference) . "";
-
-                $where.= " AND (((s$i.closed_price - s$ii.lowest_price)/s$i.closed_price)*100) BETWEEN " . (((($parameter['close'][$i] - $parameter['low'][$ii]) / $parameter['close'][$i]) * 100) - $difference) . " AND " . (((($parameter['close'][$i] - $parameter['low'][$ii]) / $parameter['close'][$i]) * 100) + $difference) . "";
-                $where.= " AND (((s$i.closed_price - s$ii.open_price)/s$i.closed_price)*100) BETWEEN " . (((($parameter['close'][$i] - $parameter['open'][$ii]) / $parameter['close'][$i]) * 100) - $difference) . " AND " . (((($parameter['close'][$i] - $parameter['open'][$ii]) / $parameter['close'][$i]) * 100) + $difference) . "";
-            }
-            if ($i != $row) { // skip the last row
-                $otherWhere .=" AND s$i.id+1=s$nextRow.id ";
-
-                $yearWhere .=" AND s$i.sellyear = s$nextRow.sellyear and s$i.sellmonth = s$nextRow.sellmonth ";
-            }
-        }
-
-
-        $select.=",s$row.sellmonth, s$row.sellyear,0000.00 as outputdeviation";  // combine all selective column
-        $query = $select . $from . $where . $otherWhere . $yearWhere; // generate full query
-        return $query;
     }
 
     /*
@@ -256,7 +183,7 @@ class M_common extends CI_Model {
         }
 //echo $query;exit;
         $query = $this->db->query($query);
-        // $last_query = $this->db->last_query();
+        $last_query = $this->db->last_query();
 //        echo $last_query;
 //        exit;
         if ($count == 0) {
@@ -268,6 +195,7 @@ class M_common extends CI_Model {
         }
     }
 
+    
     /*
       @This function is used for fetching all the data which matched for all kinf of combined matching with each others.
       @ 3 Parameter Required = $parameter, $table_name, $row
@@ -309,35 +237,41 @@ class M_common extends CI_Model {
             if ($ii == 1) {
                 $where.= " (((s$ii.open_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
             } else {
-                if ($ii == $row || $ii == $row - 1) {
+                if ($ii == $row || $ii == $row - 1){
                     $where.= " AND (((s$ii.open_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_2) . " AND " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_2) . "";
-                } else {
-                    $where.= " AND (((s$ii.open_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
                 }
+                else{
+                    $where.= " AND (((s$ii.open_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['open'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
+                }                
             }
         }
         foreach ($high as $ii => $hg) { // run a loop for number of high for generate all possible combination with high value with others for where codition
-            if ($ii == $row || $ii == $row - 1) {
+            if ($ii == $row || $ii == $row - 1){
                 $where.= " AND (((s$ii.highest_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['high'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_2) . " AND " . (((($parameter['high'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_2) . "";
-            } else {
+            }
+            else{
                 $where.= " AND (((s$ii.highest_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['high'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['high'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
             }
+            
         }
         foreach ($low as $ii => $lw) {
-            if ($ii == $row || $ii == $row - 1) {
+            if ($ii == $row || $ii == $row - 1){
                 $where.= " AND (((s$ii.lowest_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['low'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_2) . " AND " . (((($parameter['low'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_2) . "";
-            } else {
+            }else{
                 $where.= " AND (((s$ii.lowest_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['low'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['low'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
             }
+            
         }
         foreach ($close as $ii => $cl) {
-            if ($ii != $row) {// skip the combination with own
-                if ($ii == $row - 1) {
+            if ($ii != $row){// skip the combination with own
+                if ($ii == $row - 1){
                     $where.= " AND (((s$ii.closed_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['close'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_2) . " AND " . (((($parameter['close'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_2) . "";
-                } else {
+                }else{
                     $where.= " AND (((s$ii.closed_price - s$row.closed_price)/s$row.closed_price)*100) BETWEEN " . (((($parameter['close'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) - $difference_1) . " AND " . (((($parameter['close'][$ii] - $parameter['close'][$row]) / $parameter['close'][$row]) * 100) + $difference_1) . "";
                 }
+                
             }
+                
         }
         for ($i = 1; $i <= $row; $i++) {
             $nextRow = $i + 1;
@@ -357,17 +291,20 @@ class M_common extends CI_Model {
         }
 //echo $query;exit;
         $query = $this->db->query($query);
-        //   $last_query = $this->db->last_query();
-        // echo $last_query;
+        $last_query = $this->db->last_query();
+//        echo $last_query;
 //        exit;
         if ($count == 0) {
-            return $query->result_array();
-//            return array('select'=>$select,'where'=>$where . $otherWhere . $yearWhere);
+            $query = $query->result_array();
+            return $query;
         } else {
             $numRows = $query->num_rows();
             return $numRows;
         }
     }
+
+    
+    
 
     /*
      * This function is actively using in the project.
