@@ -1,31 +1,32 @@
+-- phpMyAdmin SQL Dump
+-- version 4.5.0.2
+-- http://www.phpmyadmin.net
+--
+-- Host: 127.0.0.1
+-- Generation Time: Sep 13, 2018 at 07:02 PM
+-- Server version: 10.0.17-MariaDB
+-- PHP Version: 5.6.14
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
 --
--- Functions
+-- Database: `commodity`
 --
-CREATE  FUNCTION `fn_getoutput` (`inputprice` DOUBLE, `outputprice` DOUBLE) RETURNS DOUBLE BEGIN
-set @returnval=0;
-set inputprice=ABS(inputprice);
-set outputprice=ABS(outputprice);
-if inputprice=0 and outputprice=0 then
-set @returnval=100;
-elseif GREATEST(inputprice,outputprice) !=0 THEN
-set @returnval=(100 - ((greatest(inputprice, outputprice) - least(inputprice, outputprice)) / greatest(inputprice, outputprice)) * 100);
-ELSE
-set @returnval=(100 - ((least(inputprice, outputprice) - greatest(inputprice, outputprice)) / least(inputprice, outputprice)) * 100);
-end if;
-return @returnval;
-END$$
 
-CREATE FUNCTION `fn_getpercent` (`otherprice` DOUBLE, `closeprice` DOUBLE) RETURNS DOUBLE BEGIN
-DECLARE retval double;
-#if closeprice=0 then
-set retval=0;
-
-RETURN retval;
-END$$
+DELIMITER $$
+--
+-- Procedures
+--
 
 
-CREATE  PROCEDURE `get_total_matching_diff_full` (IN `selectquery` MEDIUMTEXT, IN `daycount` INT, IN `inputprices` TEXT, IN `page_count` INT, IN `rows_count` INT)  BEGIN
+CREATE PROCEDURE `get_total_matching_diff_full` (IN `selectquery` MEDIUMTEXT, IN `daycount` INT, IN `inputprices` TEXT, IN `page_count` INT, IN `rows_count` INT)  BEGIN
 
 declare pagelimit int default 1;
 declare rowcount int default 1;
@@ -575,8 +576,30 @@ drop table if exists finaltable;
 END$$
 
 
+--
+-- Functions
+--
+CREATE FUNCTION `fn_getoutput` (`inputprice` DOUBLE, `outputprice` DOUBLE) RETURNS DOUBLE BEGIN
+set @returnval=0;
+set inputprice=ABS(inputprice);
+set outputprice=ABS(outputprice);
+if inputprice=0 and outputprice=0 then
+set @returnval=100;
+elseif GREATEST(inputprice,outputprice) !=0 THEN
+set @returnval=(100 - ((greatest(inputprice, outputprice) - least(inputprice, outputprice)) / greatest(inputprice, outputprice)) * 100);
+ELSE
+set @returnval=(100 - ((least(inputprice, outputprice) - greatest(inputprice, outputprice)) / least(inputprice, outputprice)) * 100);
+end if;
+return @returnval;
+END$$
+
+CREATE FUNCTION `fn_getpercent` (`otherprice` DOUBLE, `closeprice` DOUBLE) RETURNS DOUBLE BEGIN
+DECLARE retval double;
+#if closeprice=0 then
+set retval=0;
+
+RETURN retval;
+END$$
+
 DELIMITER ;
 
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
