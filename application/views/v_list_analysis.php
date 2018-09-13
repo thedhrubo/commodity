@@ -134,22 +134,22 @@
                     ?>
 
                     <li style="margin-bottom: 3px;">
-                        <div style="width:20%;float: left"> Match ( <?php echo round($each_item['deviation'], 2); ?>% )</div>
+                        <div style="width:20%;float: left"> Match ( <?php echo round(!empty($each_item['deviation']) ? $each_item['deviation'] : $each_item['outputdeviation'], 2); ?>% )</div>
                         <form target="_blank" style="width:10%;float: left" action="<?php echo site_url('welcome/individual_graph2/'); ?>" method="post">
                             <input type="hidden" name="startdate" value="<?php echo $startdate ?>">
                             <input type="hidden" name="finaldate" value="<?php echo $finaldate ?>">
-                            <input type="hidden" name="sellmonth" value="<?php echo $each_item['sellmonth']; ?>">
-                            <input type="hidden" name="sellyear" value="<?php echo $each_item['sellyear']; ?>">
+                            <input type="hidden" name="sellmonth" value="<?php echo !empty($each_item['sellmonth']) ? $each_item['sellmonth'] : $each_item['sellmonth_1']; ?>">
+                            <input type="hidden" name="sellyear" value="<?php echo !empty($each_item['sellyear']) ? $each_item['sellyear']: $each_item['sellyear_1']; ?>">
                             <input type="hidden" name="commodity_name" value="<?php echo $commodity_name; ?>">
                             <input type="hidden" name="date" value="<?php echo $dateStr; ?>">
-                            <input type="hidden" name="inputParameter" value="<?php echo base64_encode(serialize($inputParameter));?>">
+                            <input type="hidden" name="inputParameter" value="<?php echo base64_encode(serialize($inputParameter)); ?>">
                             <input type="submit" class="btn-primary btn-sm" value="New Chart">
                         </form>
                         <form target="_blank" style="width:10%;float: left" action="<?php echo site_url('welcome/individual_graph/'); ?>" method="post">
                             <input type="hidden" name="startdate" value="<?php echo $startdate ?>">
                             <input type="hidden" name="finaldate" value="<?php echo $finaldate ?>">
-                            <input type="hidden" name="sellmonth" value="<?php echo $each_item['sellmonth']; ?>">
-                            <input type="hidden" name="sellyear" value="<?php echo $each_item['sellyear']; ?>">
+                            <input type="hidden" name="sellmonth" value="<?php echo !empty($each_item['sellmonth']) ? $each_item['sellmonth'] : $each_item['sellmonth_1']; ?>">
+                            <input type="hidden" name="sellyear" value="<?php echo !empty($each_item['sellyear']) ? $each_item['sellyear']: $each_item['sellyear_1']; ?>">
                             <input type="hidden" name="commodity_name" value="<?php echo $commodity_name; ?>">
                             <input type="hidden" name="date" value="<?php echo $dateStr; ?>">
                             <input type="submit" class="btn-primary btn-sm" value="Old Chart">
