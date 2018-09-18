@@ -95,6 +95,7 @@
 
     <section id="services" class="section section-padded">
         <h3><?php echo $analysis_kind; ?></h3>
+        <div class="col-md-8">
         <ul>
             <?php
             if (count($date_array) > 0) {
@@ -165,6 +166,20 @@
             ?>
 
         </ul>
+        </div>
+        <div class="col-md-4">
+            <?php 
+            if (count($date_array) > 0) {
+                $total_row = $date_array[0]['close_up']+$date_array[0]['close_down']+$date_array[0]['close_equal'];
+            ?>
+            <ul>
+                <li><b> Close up : <?php echo number_format(($date_array[0]['close_up']*100)/$total_row,2); ?>%</b></li>
+                <li><b> Close down : <?php echo number_format(($date_array[0]['close_down']*100)/$total_row,2); ?>%</b></li>
+                <li><b> Close Equal : <?php echo number_format(($date_array[0]['close_equal']*100)/$total_row,2); ?>%</b></li>
+            </ul>
+            <?php } ?>
+        </div>
+        <div class="clearfix"></div>
     </section>
     <div id="pagination">
         <ul class="tsc_pagination">
