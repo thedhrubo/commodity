@@ -133,17 +133,16 @@ if @wherelist!='' THEN
 set @wherelist=CONCAT(' where ',@wherelist);
 end if;
 #create a temporary table for fetching all the fetched data into a temporary table which name is "a"
-set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS a as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,');');
+set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS a as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,')');
 PREPARE stt1 from @query;
 EXECUTE stt1;
 DEALLOCATE prepare stt1;
 
 # copy "a" table to another table like "b". this is for updating "a" table some file like how many close_up,down and equal.
-set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS b as (SELECT * FROM a)');
+set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS c as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,')');
 PREPARE stt1 from @query;
 EXECUTE stt1;
 DEALLOCATE prepare stt1;
-
 set iii=0;
 set @update='';
 set @finalselect='';
@@ -176,30 +175,27 @@ end WHILE;
 
 set qq=SUBSTRING(qq,1,CHAR_LENGTH(qq)-1);
 
-set @qr=CONCAT('update a set close_diff=(open_price_',daycount+1,'-closed_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "a"
+set @qr=CONCAT('update a set close_diff=(closed_price_',daycount+1,'-open_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "a"
 
 prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
-set @qr=CONCAT('update b set close_diff=(open_price_',daycount+1,'-closed_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "b"
+set @qr=CONCAT('update c set close_diff=(closed_price_',daycount+1,'-open_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "b"
 
 prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
-
-
-
-set @qr=CONCAT('update a set close_equal = (select count(*) from b where close_diff=0)'); # update close_equal in table "a" by claculating how many rows difference are equal
+set @qr=CONCAT('update a set close_equal = (select count(*) from c where close_diff=0)'); # update close_equal in table "a" by claculating how many rows difference are equal
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
-set @qr=CONCAT('update a set close_down = (select count(*) from b where close_diff<0)'); # update close_down in table "a" by claculating how many rows difference are down
+set @qr=CONCAT('update a set close_down = (select count(*) from c where close_diff<0)'); # update close_down in table "a" by claculating how many rows difference are down
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
-set @qr=CONCAT('update a set close_up = (select count(*) from b where close_diff>0)'); # update close_up in table "a" by claculating how many rows difference are up
+set @qr=CONCAT('update a set close_up = (select count(*) from c where close_diff>0)'); # update close_up in table "a" by claculating how many rows difference are up
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
@@ -232,6 +228,7 @@ select * from finaltable; # Finally select full temporary table for returning
 
 drop table if exists inputpricestemp; # delete temporary table
 drop table if exists a;
+drop table if exists c;
 drop table if exists finaltable;
 
 END$$
