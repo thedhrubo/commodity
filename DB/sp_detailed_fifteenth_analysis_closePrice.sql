@@ -6,20 +6,20 @@ DELIMITER $$
 DROP PROCEDURE IF EXISTS `sp_detailed_fifteenth_analysis_closePrice`$$
 CREATE PROCEDURE `sp_detailed_fifteenth_analysis_closePrice` (IN `commodity` VARCHAR(100), IN `daycount` INT, IN `inputprices` TEXT, IN `diff` DOUBLE, IN `page_count` INT, IN `rows_count` INT)  BEGIN
 
-declare pagelimit int default 1; # initiazie the page limit which will change as per user define
-declare i int UNSIGNED default 0; # initializing the Incremental value for creating select and where cluase string from user defined table
+declare pagelimit int default 1; # initialize the page limit which will change as per user define
+declare i int UNSIGNED default 0; # initializing the Incremental value for creating select and where clause string from user defined table
 declare ii int UNSIGNED default 0; # initializing the Incremental value of input price storing into a temporary table
-declare iii int UNSIGNED default 0; # initializing the Incremental value for creating a conditional statement after fetching the data from userdefined table. This conditional statement will use for calculating the fetced data and give the actual deviation
-declare qq text DEFAULT ''; # Intitialze a temporary query string
-declare minlimit DOUBLE DEFAULT 0; # initialize minimum limit of feting the the data from table
-declare maxlimit DOUBLE DEFAULT 0; # initialize maximum limit of feting the the data from table
+declare iii int UNSIGNED default 0; # initializing the Incremental value for creating a conditional statement after fetching the data from user defined table. This conditional statement will use for calculating the fetced data and give the actual deviation
+declare qq text DEFAULT ''; # Initialize a temporary query string
+declare minlimit DOUBLE DEFAULT 0; # initialize minimum limit of fetching the data from table
+declare maxlimit DOUBLE DEFAULT 0; # initialize maximum limit of fetching the data from table
 declare inputopenprice DOUBLE DEFAULT 0; 
 declare inputhighprice DOUBLE DEFAULT 0;
 declare inputlowprice DOUBLE DEFAULT 0;
 declare inputcloseprice DOUBLE DEFAULT 0;
 declare inputfinalcloseprice DOUBLE DEFAULT 0;# initialize a variable for storing last day close price vlaue 
 set @table_name=''; # initialize a variable for storing user defined table name
-set @selectlist=''; # This is for creating a select statement string for feathing the raw data from table
+set @selectlist=''; # This is for creating a select statement string for fetching the raw data from table
 set @selectlist1=''; # This is for creating a select statement string for calculating open,close,highest and low price from the raw data
 set @selectlist2=''; # This is for creating a select statement string for calculating input deviation of open,close,highest and low price from the raw data
 set @selectlist3=''; # This is for creating a select statement string for calculating output deviation of open,close,highest and low price from the raw data
@@ -121,7 +121,7 @@ set @selectlist=CONCAT(@selectlist,'s',i,'.','id id_',i,',s',i,'.','open_price o
 
 # end extra row functionality
 
-set @selectlist2=CONCAT(@selectlist2,'0000.00 as outputdeviation,'); # initialization for outdeviation
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as outputdeviation,'); # initialization for outputdeviation
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_diff,'); # initialization for last day open_price-close_price difference
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_up,'); # initialization for how many close_up found.
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_down,'); # initialization for how many close_down found.
@@ -133,17 +133,16 @@ if @wherelist!='' THEN
 set @wherelist=CONCAT(' where ',@wherelist);
 end if;
 #create a temporary table for fetching all the fetched data into a temporary table which name is "a"
-set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS a as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,');');
+set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS a as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,')');
 PREPARE stt1 from @query;
 EXECUTE stt1;
 DEALLOCATE prepare stt1;
 
 # copy "a" table to another table like "b". this is for updating "a" table some file like how many close_up,down and equal.
-set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS b as (SELECT * FROM a)');
+set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS c as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,')');
 PREPARE stt1 from @query;
 EXECUTE stt1;
 DEALLOCATE prepare stt1;
-
 set iii=0;
 set @update='';
 set @finalselect='';
@@ -176,30 +175,27 @@ end WHILE;
 
 set qq=SUBSTRING(qq,1,CHAR_LENGTH(qq)-1);
 
-set @qr=CONCAT('update a set close_diff=(open_price_',daycount+1,'-closed_price_',daycount+1,')'); # update close_diif based on last day open_price_close_price in table "a"
+set @qr=CONCAT('update a set close_diff=(closed_price_',daycount+1,'-open_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "a"
 
 prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
-set @qr=CONCAT('update b set close_diff=(open_price_',daycount+1,'-closed_price_',daycount+1,')'); # update close_diif based on last day open_price_close_price in table "b"
+set @qr=CONCAT('update c set close_diff=(closed_price_',daycount+1,'-open_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "b"
 
 prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
-
-
-
-set @qr=CONCAT('update a set close_equal = (select count(*) from b where close_diff=0)'); # update close_equal in table "a" by claculating how many rows difference are equal
+set @qr=CONCAT('update a set close_equal = (select count(*) from c where close_diff=0)'); # update close_equal in table "a" by claculating how many rows difference are equal
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
-set @qr=CONCAT('update a set close_down = (select count(*) from b where close_diff<0)'); # update close_down in table "a" by claculating how many rows difference are down
+set @qr=CONCAT('update a set close_down = (select count(*) from c where close_diff<0)'); # update close_down in table "a" by claculating how many rows difference are down
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
-set @qr=CONCAT('update a set close_up = (select count(*) from b where close_diff>0)'); # update close_up in table "a" by claculating how many rows difference are up
+set @qr=CONCAT('update a set close_up = (select count(*) from c where close_diff>0)'); # update close_up in table "a" by claculating how many rows difference are up
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
@@ -209,7 +205,7 @@ set @finalselect=CONCAT(@finalselect,'close_diff,');
 set @finalselect=CONCAT(@finalselect,'close_up,');
 set @finalselect=CONCAT(@finalselect,'close_down,');
 set @finalselect=CONCAT(@finalselect,'close_equal');
-set @qr=CONCAT('update a set outputdeviation=(((',qq,')-100)/(',(daycount*4)-1,'))'); # update output deviation by deduction the last close_price-close_price = 100, because there is rules that if value is same then add 100, So finaly removed the close_last-close_last.
+set @qr=CONCAT('update a set outputdeviation=(((',qq,')-100)/(',(daycount*4)-1,'))'); # update output deviation by deducting the last close_price-close_price = 100, because there is rules that if value is same then add 100, So finaly removed the close_last-close_last.
 
 prepare stt2 from @qr;
 EXECUTE stt2;
@@ -232,6 +228,7 @@ select * from finaltable; # Finally select full temporary table for returning
 
 drop table if exists inputpricestemp; # delete temporary table
 drop table if exists a;
+drop table if exists c;
 drop table if exists finaltable;
 
 END$$

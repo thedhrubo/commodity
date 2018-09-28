@@ -169,7 +169,7 @@
         </div>
         <div class="col-md-4">
             <?php 
-            if (count($date_array) > 0) {
+            if (count($date_array) > 0 && isset($date_array[0]['close_up'])) {
                 $total_row = $date_array[0]['close_up']+$date_array[0]['close_down']+$date_array[0]['close_equal'];
             ?>
             <ul>
