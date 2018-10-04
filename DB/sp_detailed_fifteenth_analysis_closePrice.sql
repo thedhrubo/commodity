@@ -125,7 +125,14 @@ set @selectlist2=CONCAT(@selectlist2,'0000.00 as outputdeviation,'); # initializ
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_diff,'); # initialization for last day open_price-close_price difference
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_up,'); # initialization for how many close_up found.
 set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_down,'); # initialization for how many close_down found.
-set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_equal'); # initialization for how many close_equal found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as close_equal,'); # initialization for how many close_equal found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as open_minus_low,'); # initialization for open price - close price value.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as high_minus_open,'); # initialization for high price - open price.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as move_up,'); # initialization for how many move_up found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as move_down,'); # initialization for how many move_down found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as move_equal,'); # initialization for how many move_equal found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as move_up_average,'); # initialization for how many move up average found.
+set @selectlist2=CONCAT(@selectlist2,'0000.00 as move_down_average'); # initialization for how many move down average found.
 set @wherelist4=SUBSTRING(@wherelist4,1,CHAR_LENGTH(@wherelist4)-3);
 set @wherelist=CONCAT(@wherelist1,@wherelist2,@wherelist3,@wherelist4);
 
@@ -181,7 +188,32 @@ prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
+set @qr=CONCAT('update a set open_minus_low=(open_price_',daycount+1,'-lowest_price_',daycount+1,')'); # update open_minus_low based on last day open_price-lowest_price in table "a"
+
+prepare stt2 from @qr;
+EXECUTE stt2;
+DEALLOCATE prepare stt2 ;
+
+set @qr=CONCAT('update a set high_minus_open=(highest_price_',daycount+1,'-open_price_',daycount+1,')'); # update high_minus_open based on last day high_price-open_price in table "a"
+
+prepare stt2 from @qr;
+EXECUTE stt2;
+DEALLOCATE prepare stt2 ;
+
+
 set @qr=CONCAT('update c set close_diff=(closed_price_',daycount+1,'-open_price_',daycount+1,')'); # update close_diif based on last day open_price-close_price in table "b"
+
+prepare stt2 from @qr;
+EXECUTE stt2;
+DEALLOCATE prepare stt2 ;
+
+set @qr=CONCAT('update c set open_minus_low=(open_price_',daycount+1,'-lowest_price_',daycount+1,')'); # update open_minus_low based on last day open_price-low_price in table "a"
+
+prepare stt2 from @qr;
+EXECUTE stt2;
+DEALLOCATE prepare stt2 ;
+
+set @qr=CONCAT('update c set high_minus_open=(highest_price_',daycount+1,'-open_price_',daycount+1,')'); # update high_minus_open based on last day high_price-open_price in table "a"
 
 prepare stt2 from @qr;
 EXECUTE stt2;
@@ -200,11 +232,43 @@ prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
 
+set @qr=CONCAT('update a set move_equal = (select count(*) from c where open_minus_low=high_minus_open)'); # update move_equal in table "a" by claculating how many rows difference are equal
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
+set @qr=CONCAT('update a set move_down = (select count(*) from c where open_minus_low>high_minus_open)'); # update move_down in table "a" by claculating how many rows open_minus_low is grater than high_minus_open
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
+set @qr=CONCAT('update a set move_up = (select count(*) from c where open_minus_low<high_minus_open)'); # update move_up in table "a" by claculating how many rows high_minus_open is grater than open_minus_low 
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
+set @qr=CONCAT('update a set move_up_average = (select avg(high_minus_open) from c)'); # update move_up_average in table "a" by claculating average of high_minus_open
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
+set @qr=CONCAT('update a set move_down_average = (select avg(open_minus_low) from c)'); # update move_down_average in table "a" by claculating average of open_minus_low
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
 set @finalselect=CONCAT(@finalselect,'outputdeviation deviation,'); # concate all the select option with deviation aswell
 set @finalselect=CONCAT(@finalselect,'close_diff,');
 set @finalselect=CONCAT(@finalselect,'close_up,');
 set @finalselect=CONCAT(@finalselect,'close_down,');
-set @finalselect=CONCAT(@finalselect,'close_equal');
+set @finalselect=CONCAT(@finalselect,'close_equal,');
+set @finalselect=CONCAT(@finalselect,'open_minus_low,');
+set @finalselect=CONCAT(@finalselect,'high_minus_open,');
+set @finalselect=CONCAT(@finalselect,'move_up,');
+set @finalselect=CONCAT(@finalselect,'move_down,');
+set @finalselect=CONCAT(@finalselect,'move_equal,');
+set @finalselect=CONCAT(@finalselect,'move_up_average,');
+set @finalselect=CONCAT(@finalselect,'move_down_average');
 set @qr=CONCAT('update a set outputdeviation=(((',qq,')-100)/(',(daycount*4)-1,'))'); # update output deviation by deducting the last close_price-close_price = 100, because there is rules that if value is same then add 100, So finaly removed the close_last-close_last.
 
 prepare stt2 from @qr;

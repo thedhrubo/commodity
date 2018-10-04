@@ -178,6 +178,26 @@
                 <li><b> Close Equal : <?php echo number_format(($date_array[0]['close_equal']*100)/$total_row,2); ?>%</b></li>
             </ul>
             <?php } ?>
+            <hr>
+               <?php 
+            if (count($date_array) > 0 && isset($date_array[0]['move_up'])) {
+                $total_row = $date_array[0]['move_up']+$date_array[0]['move_down']+$date_array[0]['move_equal'];
+            ?>
+            <ul>
+                <li><b> Dominant move up : <?php echo number_format(($date_array[0]['move_up']*100)/$total_row,2); ?>%</b></li>
+                <li><b> Dominant move down : <?php echo number_format(($date_array[0]['move_down']*100)/$total_row,2); ?>%</b></li>
+                <li><b> Dominant move Equal : <?php echo number_format(($date_array[0]['move_equal']*100)/$total_row,2); ?>%</b></li>
+            </ul>
+            <?php } ?>
+                <hr>
+               <?php 
+            if (count($date_array) > 0 && isset($date_array[0]['move_up_average'])) {
+            ?>
+            <ul>
+                <li><b> Move up average: <?php echo number_format($date_array[0]['move_up_average'],2); ?></b></li>
+                <li><b> Move down average : <?php echo number_format($date_array[0]['move_down_average'],2); ?></b></li>
+            </ul>
+            <?php } ?>
         </div>
         <div class="clearfix"></div>
     </section>
