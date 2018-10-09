@@ -235,8 +235,6 @@ drop table if exists inputpricestemp; # delete temporary table
 drop table if exists a;
 drop table if exists finaltable;
 
-END
-
 END$$
 
 
