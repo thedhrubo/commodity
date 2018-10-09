@@ -250,7 +250,7 @@ class Welcome extends CI_Controller {
         $query = $this->m_common->get_total_matching_diff_full_query($parameter, $table_name, $row); // fethch the result depends on posted value
 
         $sql = "CALL get_total_matching_diff_full('" . $query . "', $row, '" . $params . "',$page,150)";
-     
+
         $result = $this->db->query($sql);
         $all_info = $result->result_array();
 
@@ -337,10 +337,21 @@ class Welcome extends CI_Controller {
         /*
          * Implementing paging option
          */
+
+        if ($this->uri->segment(3)) {
+            $page = ($this->uri->segment(3));
+        } else {
+            $page = 1;
+        }
+
+        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150)";
+        $result = $this->db->query($sql);
+        $all_info = $result->result_array();
+
         $this->load->library('pagination');
         $config = array();
         $config["base_url"] = base_url() . "/welcome/detailed_fifteenth_analysis_closePrice";
-        $total_row = $this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
+        $total_row = !empty($all_info[0]['total_rows']) ? $all_info[0]['total_rows'] : '0';//$this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
         $config["total_rows"] = $total_row;
         $config["per_page"] = 150;
         $config['use_page_numbers'] = TRUE;
@@ -351,15 +362,6 @@ class Welcome extends CI_Controller {
         $config['prev_link'] = 'Previous';
 
         $this->pagination->initialize($config);
-        if ($this->uri->segment(3)) {
-            $page = ($this->uri->segment(3));
-        } else {
-            $page = 1;
-        }
-
-        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,".$config["per_page"].")";
-        $result = $this->db->query($sql);
-        $all_info = $result->result_array();
 
         $str_links = $this->pagination->create_links();
         $data["links"] = explode('&nbsp;', $str_links);
