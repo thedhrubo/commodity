@@ -201,19 +201,19 @@ prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
 
-
-set @finalselect=CONCAT(@finalselect,'outputdeviation deviation,'); # concate all the select option with deviation aswell
-set @finalselect=CONCAT(@finalselect,'close_diff,');
-set @finalselect=CONCAT(@finalselect,'close_up,');
-set @finalselect=CONCAT(@finalselect,'close_down,');
-set @finalselect=CONCAT(@finalselect,'close_equal,');
-set @finalselect=CONCAT(@finalselect,'open_minus_low,');
-set @finalselect=CONCAT(@finalselect,'high_minus_open,');
-set @finalselect=CONCAT(@finalselect,'move_up,');
-set @finalselect=CONCAT(@finalselect,'move_down,');
-set @finalselect=CONCAT(@finalselect,'move_equal,');
-set @finalselect=CONCAT(@finalselect,'move_up_average,');
-set @finalselect=CONCAT(@finalselect,'move_down_average');
+set @finalselect2 = '';
+set @finalselect=CONCAT(@finalselect,'outputdeviation deviation'); # concate all the select option with deviation aswell
+set @finalselect2=CONCAT(@finalselect2,'close_diff,');
+set @finalselect2=CONCAT(@finalselect2,'close_up,');
+set @finalselect2=CONCAT(@finalselect2,'close_down,');
+set @finalselect2=CONCAT(@finalselect2,'close_equal,');
+set @finalselect2=CONCAT(@finalselect2,'open_minus_low,');
+set @finalselect2=CONCAT(@finalselect2,'high_minus_open,');
+set @finalselect2=CONCAT(@finalselect2,'move_up,');
+set @finalselect2=CONCAT(@finalselect2,'move_down,');
+set @finalselect2=CONCAT(@finalselect2,'move_equal,');
+set @finalselect2=CONCAT(@finalselect2,'move_up_average,');
+set @finalselect2=CONCAT(@finalselect2,'move_down_average');
 
 set @total_row = (SELECT count(*) from a);
 if page_count=0 and rows_count=0 THEN
@@ -224,12 +224,17 @@ set page_count=page_count-1;
 set pagelimit=page_count*rows_count;
 set @limitq=CONCAT('limit ',pagelimit,',',rows_count);
 end if;
-set @qrr=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS finaltable AS (select ',@finalselect,',',@total_row,' as total_rows from a order by deviation desc ',@limitq,' );'); # create a temporary table with all the required filed need to return
+set @qrr=CONCAT('select ',@finalselect,' from a order by deviation desc ',@limitq,''); # create a temporary table with all the required filed need to return
 prepare stt21 from @qrr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
 
-select * from finaltable; # Finally select full temporary table for returning 
+set @qrr=CONCAT('select ',@finalselect2,',',@total_row,' as total_rows from a limit 1'); # create a temporary table with all the required filed need to return
+prepare stt21 from @qrr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21 ;
+
+#select * from finaltable; # Finally select full temporary table for returning 
 
 drop table if exists inputpricestemp; # delete temporary table
 drop table if exists a;

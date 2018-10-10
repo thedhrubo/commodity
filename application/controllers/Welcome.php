@@ -345,13 +345,14 @@ class Welcome extends CI_Controller {
         }
 
         $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150)";
-        $result = $this->db->query($sql);
-        $all_info = $result->result_array();
+        $result = $this->GetMultipleQueryResult($sql);
+        $all_info = !empty($result[0]) ? $result[0] : array();
+        $other_info = !empty($result[1][0]) ? $result[1][0] : array();
 
         $this->load->library('pagination');
         $config = array();
         $config["base_url"] = base_url() . "/welcome/detailed_fifteenth_analysis_closePrice";
-        $total_row = !empty($all_info[0]['total_rows']) ? $all_info[0]['total_rows'] : '0';//$this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
+        $total_row = !empty($other_info['total_rows']) ? $other_info['total_rows'] : '0'; //$this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
         $config["total_rows"] = $total_row;
         $config["per_page"] = 150;
         $config['use_page_numbers'] = TRUE;
@@ -367,6 +368,7 @@ class Welcome extends CI_Controller {
         $data["links"] = explode('&nbsp;', $str_links);
         $totalInputRow = count($parameter['open']);
         $data['date_array'] = $all_info;
+        $data['other_info'] = $other_info;
         $data['row'] = $totalInputRow;
         $data['commodity_name'] = $table_name;
         $data['analysis_kind'] = "15 matches analysis";
@@ -455,6 +457,27 @@ class Welcome extends CI_Controller {
         $data['row'] = $totalInputRow;
         $data['commodity_name'] = $table_name;
         $this->load->view("v_list_analysis", $data); // load all data into a view file
+    }
+
+    public function GetMultipleQueryResult($queryString) {
+        if (empty($queryString)) {
+            return false;
+        }
+
+        $index = 0;
+        $ResultSet = array();
+
+        /* execute multi query */
+        if (mysqli_multi_query($this->db->conn_id, $queryString)) {
+            do {
+                if (false != $result = mysqli_store_result($this->db->conn_id)) {
+                    $ResultSet[$index] = $result->fetch_all(MYSQLI_ASSOC);
+                }
+                $index++;
+            } while (mysqli_next_result($this->db->conn_id));
+        }
+
+        return $ResultSet;
     }
 
 }
