@@ -347,8 +347,10 @@ class Welcome extends CI_Controller {
         $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150)";
         $result = $this->GetMultipleQueryResult($sql);
         $all_info = !empty($result[0]) ? $result[0] : array();
-        $other_info = !empty($result[1][0]) ? $result[1][0] : array();
-
+        if (!empty($result[1])) {
+            $rr = $result[1]->fetch_assoc();
+            $other_info = !empty($rr) ? $rr : array();
+        }
         $this->load->library('pagination');
         $config = array();
         $config["base_url"] = base_url() . "/welcome/detailed_fifteenth_analysis_closePrice";
@@ -372,7 +374,7 @@ class Welcome extends CI_Controller {
         $data['row'] = $totalInputRow;
         $data['commodity_name'] = $table_name;
         $data['analysis_kind'] = "15 matches analysis";
-        $this->load->view("v_list_analysis", $data); // load all data into a view file
+        $this->load->view("v_list_analysis_new", $data); // load all data into a view file
     }
 
     /*
@@ -471,10 +473,11 @@ class Welcome extends CI_Controller {
         if (mysqli_multi_query($this->db->conn_id, $queryString)) {
             do {
                 if (false != $result = mysqli_store_result($this->db->conn_id)) {
-                    $ResultSet[$index] = $result->fetch_all(MYSQLI_ASSOC);
+                    // $ResultSet[$index] = $result->fetch_all(MYSQLI_ASSOC);
+                    $ResultSet[$index] = $result;
                 }
                 $index++;
-            } while (mysqli_next_result($this->db->conn_id));
+            } while (mysqli_more_results($this->db->conn_id) && mysqli_next_result($this->db->conn_id));
         }
 
         return $ResultSet;
