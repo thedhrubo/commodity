@@ -141,6 +141,8 @@ set @wherelist=CONCAT(' where ',@wherelist);
 end if;
 #create a temporary table for fetching all the fetched data into a temporary table which name is "a"
 set @query=CONCAT('CREATE TEMPORARY TABLE IF NOT EXISTS a as (SELECT ',@selectlist,@selectlist1,@selectlist2,' FROM ',@table_name,' ',@wherelist,')');
+
+
 PREPARE stt1 from @query;
 EXECUTE stt1;
 DEALLOCATE prepare stt1;
@@ -185,18 +187,25 @@ prepare stt2 from @qr;
 EXECUTE stt2;
 DEALLOCATE prepare stt2 ;
 
+set @qr = CONCAT('update a set outputdeviation=(((',qq,')-100)/(',(daycount*4)-1,'))');
+prepare stt21 from @qr;
+EXECUTE stt21;
+DEALLOCATE prepare stt21;
 
-set @close_equal_total = (select count(*) from a where close_diff=0);
-set @close_down_total = (select count(*) from a where close_diff<0);
-set @close_up_total = (select count(*) from a where close_diff>0);
-set @move_equal_total = (select count(*) from a where open_minus_low=high_minus_open);
-set @move_down_total = (select count(*) from a where open_minus_low>high_minus_open);
-set @move_up_total = (select count(*) from a where open_minus_low<high_minus_open);
-set @move_up_average = (select avg(high_minus_open) from a);
-set @move_down_average = (select avg(open_minus_low) from a);
+set @max_percent = (select `value` from settings where `key`='min_percent');
+
+set @close_equal_total = (select count(*) from a where outputdeviation >= @max_percent and close_diff=0);
+set @close_down_total = (select count(*) from a where outputdeviation >= @max_percent and close_diff<0);
+set @close_up_total = (select count(*) from a where outputdeviation >= @max_percent and close_diff>0);
+set @move_equal_total = (select count(*) from a where outputdeviation >= @max_percent and open_minus_low=high_minus_open);
+set @move_down_total = (select count(*) from a where outputdeviation >= @max_percent and open_minus_low>high_minus_open);
+set @move_up_total = (select count(*) from a where outputdeviation >= @max_percent and open_minus_low<high_minus_open);
+set @move_up_average = (select avg(high_minus_open) from a where outputdeviation >= @max_percent);
+set @move_down_average = (select avg(open_minus_low) from a where outputdeviation >= @max_percent);
 set @qr=CONCAT('update a set close_equal=',@close_equal_total,',close_down=',@close_down_total,',close_up = ',@close_up_total,',
 move_equal = ',@move_equal_total,',move_down=',@move_down_total,',move_up=',@move_up_total,',
-move_up_average=',@move_up_average,',move_down_average=',@move_down_average,',outputdeviation=(((',qq,')-100)/(',(daycount*4)-1,'))'); # update close_up in table "a" by claculating how many rows difference are up
+move_up_average=',@move_up_average,',move_down_average=',@move_down_average); # update close_up in table "a" by claculating how many rows difference are up
+
 prepare stt21 from @qr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
@@ -215,7 +224,7 @@ set @finalselect2=CONCAT(@finalselect2,'move_equal,');
 set @finalselect2=CONCAT(@finalselect2,'move_up_average,');
 set @finalselect2=CONCAT(@finalselect2,'move_down_average');
 
-set @total_row = (SELECT count(*) from a);
+set @total_row = (SELECT count(*) from a where outputdeviation >= @max_percent);
 if page_count=0 and rows_count=0 THEN
 set @limitq='';
 else
@@ -224,12 +233,12 @@ set page_count=page_count-1;
 set pagelimit=page_count*rows_count;
 set @limitq=CONCAT('limit ',pagelimit,',',rows_count);
 end if;
-set @qrr=CONCAT('select ',@finalselect,' from a order by deviation desc ',@limitq,''); # create a temporary table with all the required filed need to return
+set @qrr=CONCAT('select ',@finalselect,' from a where outputdeviation >= ',@max_percent,' order by deviation desc ',@limitq,''); # create a temporary table with all the required filed need to return
 prepare stt21 from @qrr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
 
-set @qrr=CONCAT('select ',@finalselect2,',',@total_row,' as total_rows from a limit 1'); # create a temporary table with all the required filed need to return
+set @qrr=CONCAT('select ',@finalselect2,',',@total_row,' as total_rows from a where outputdeviation >= ',@max_percent,' limit 1'); # create a temporary table with all the required filed need to return
 prepare stt21 from @qrr;
 EXECUTE stt21;
 DEALLOCATE prepare stt21 ;
@@ -239,6 +248,7 @@ DEALLOCATE prepare stt21 ;
 drop table if exists inputpricestemp; # delete temporary table
 drop table if exists a;
 drop table if exists finaltable;
+
 
 END$$
 
