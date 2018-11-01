@@ -347,6 +347,7 @@ class Welcome extends CI_Controller {
         $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150)";
         $result = $this->GetMultipleQueryResult($sql);
         $all_info = !empty($result[0]) ? $result[0] : array();
+        $other_info = array();
         if (!empty($result[1])) {
             $rr = $result[1]->fetch_assoc();
             $other_info = !empty($rr) ? $rr : array();
