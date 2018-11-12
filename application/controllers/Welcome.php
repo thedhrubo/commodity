@@ -344,7 +344,7 @@ class Welcome extends CI_Controller {
             $page = 1;
         }
 
-        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150)";
+        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150,'')";
         $result = $this->GetMultipleQueryResult($sql);
         $all_info = !empty($result[0]) ? $result[0] : array();
         $other_info = array();
@@ -482,6 +482,150 @@ class Welcome extends CI_Controller {
         }
 
         return $ResultSet;
+    }
+
+    public function settings() {
+        $user_id = $this->session->userdata('user_id');
+        if (empty($user_id)) {
+            redirect_with_msg('welcome/login', 'Please Login to access this page');
+        } else {
+
+            if (isset($_POST) && !empty($_POST)) {
+                foreach ($_POST as $key => $row) {
+                    $arr = array();
+                    $exists = $this->m_common->get_row_array('settings', array('key' => $key), '*');
+                    if (!empty($exists)) {
+                        $this->m_common->update_row('settings', array('key' => $key), array('value' => $row));
+                    } else {
+                        $this->m_common->insert_row('settings', array('key' => $key, 'value' => $row));
+                    }
+                }
+            }
+
+            $data = array();
+            $settings = $this->m_common->get_row_array('settings', '', '*');
+            foreach ($settings as $row) {
+                $data[$row['key']] = $row['value'];
+            }
+
+            $this->load->view('v_settings', $data);
+        }
+    }
+
+    /*
+     * 
+     * 
+     * @ This is the function for fifteenth matches Module calculation. Comparing the matched between the last input days closed price with others
+     * @ Author dhrubo Saha
+     * @ This is the data featching and calculating function for data analysis.
+     * @ Parameter = Not required
+     * @ POST = Yes
+     * @ GET = Not Required
+     * @ Result = By user given data this function fetched the all possible combinated data and then calculate the deviation for them and show view files.
+     */
+
+    public function three_days_15_match() {
+
+        $user_id = $this->session->userdata('user_id');
+        if ($user_id) {
+            $data = array();
+            $this->load->view('v_three_days_15_match', $data);
+        } else {
+            $this->login();
+        }
+    }
+
+    /*
+     * 
+     * 
+     * @ This is the function for fifteenth matches Module calculation. Comparing the matched between the last input days closed price with others
+     * @ Author dhrubo Saha
+     * @ This is the data featching and calculating function for data analysis.
+     * @ Parameter = Not required
+     * @ POST = Yes
+     * @ GET = Not Required
+     * @ Result = By user given data this function fetched the all possible combinated data and then calculate the deviation for them and show view files.
+     */
+
+    public function three_days_15_match_action() {
+
+        $postData = $this->input->post();
+        if (!empty($postData)) {
+            $this->session->set_userdata($postData);
+        } else {
+            $postData['open'] = $this->session->userdata('open');
+            $postData['high'] = $this->session->userdata('high');
+            $postData['low'] = $this->session->userdata('low');
+            $postData['close'] = $this->session->userdata('close');
+            $postData['difference'] = $this->session->userdata('difference');
+            $postData['category_name'] = $this->session->userdata('category_name');
+        }
+
+
+        $difference = $postData['difference'];
+        $sellmonth = !empty($postData['sellmonth']) ? $postData['sellmonth'] : '';
+        $parameter = array();
+        $row = 0;
+        $params = '';
+        foreach ($postData['open'] as $key => $open) {
+            if (!empty($params))
+                $params.='|' . $open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+            else
+                $params.=$open . ',' . $postData['high'][$key] . ',' . $postData['low'][$key] . ',' . $postData['close'][$key];
+
+            $row = $key + 1;
+            $parameter['open'][$row] = $open;
+            $parameter['high'][$row] = $postData['high'][$key];
+            $parameter['low'][$row] = $postData['low'][$key];
+            $parameter['close'][$row] = $postData['close'][$key];
+        }
+        $parameter['difference'] = $difference;
+        $table_name = $postData['category_name'];
+
+        $data['inputParameter'] = $parameter;
+
+        /*
+         * Implementing paging option
+         */
+
+        if ($this->uri->segment(3)) {
+            $page = ($this->uri->segment(3));
+        } else {
+            $page = 1;
+        }
+
+        $sql = "CALL sp_detailed_fifteenth_analysis_closePrice('" . $postData['category_name'] . "', $row, '" . $params . "'," . $difference . ",$page,150,'".strtoupper($sellmonth)."')";
+        $result = $this->GetMultipleQueryResult($sql);
+        $all_info = !empty($result[0]) ? $result[0] : array();
+        $other_info = array();
+        if (!empty($result[1])) {
+            $rr = $result[1]->fetch_assoc();
+            $other_info = !empty($rr) ? $rr : array();
+        }
+        $this->load->library('pagination');
+        $config = array();
+        $config["base_url"] = base_url() . "/welcome/three_days_15_match_action";
+        $total_row = !empty($other_info['total_rows']) ? $other_info['total_rows'] : '0'; //$this->m_common->get_15_matching_diff_last_Close($parameter, $table_name, $row, 1);
+        $config["total_rows"] = $total_row;
+        $config["per_page"] = 150;
+        $config['use_page_numbers'] = TRUE;
+        $config['num_links'] = $total_row;
+        $config['cur_tag_open'] = '&nbsp;<a class="current">';
+        $config['cur_tag_close'] = '</a>';
+        $config['next_link'] = 'Next';
+        $config['prev_link'] = 'Previous';
+
+        $this->pagination->initialize($config);
+
+        $str_links = $this->pagination->create_links();
+        $data["links"] = explode('&nbsp;', $str_links);
+        $totalInputRow = count($parameter['open']);
+        $data['date_array'] = $all_info;
+        $data['other_info'] = $other_info;
+        $data['row'] = $totalInputRow;
+        $data['commodity_name'] = $table_name;
+        $data['analysis_kind'] = "3 Days 15 Matching";
+        $this->load->view("v_list_analysis_new", $data); // load all data into a view file
     }
 
 }

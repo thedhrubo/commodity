@@ -18,6 +18,8 @@
             <ul class="nav navbar-nav navbar-right main-nav">
                 <?php if ($this->session->userdata('user_id')) { ?><li><a href="<?php echo site_url("welcome/full_analysis"); ?>">Home</a></li><?php } ?>
                 <?php if ($this->session->userdata('user_id')) { ?><li><a href="<?php echo site_url("welcome/fifteenth_analysisClosePrice2ndPhase"); ?>">15 Matches 2nd Phase</a></li><?php } ?>
+                <?php if ($this->session->userdata('user_id')) { ?><li><a href="<?php echo site_url("welcome/three_days_15_match"); ?>">3 Days 15 Matching</a></li><?php } ?>
+                <?php if ($this->session->userdata('user_id')) { ?><li><a href="<?php echo site_url("welcome/settings"); ?>">Settings</a></li><?php } ?>
                 <?php if ($this->session->userdata('user_id')) { ?><li><a href="<?php echo site_url("welcome/logout"); ?>">Logout</a></li><?php } ?>
                 <!--					<li><a href="#team">Team</a></li>
                                                         <li><a href="#pricing">Pricing</a></li>
