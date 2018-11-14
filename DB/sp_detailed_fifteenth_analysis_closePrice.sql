@@ -4,7 +4,7 @@ DELIMITER $$
 --
 
 DROP PROCEDURE IF EXISTS `sp_detailed_fifteenth_analysis_closePrice`$$
-CREATE PROCEDURE `sp_detailed_fifteenth_analysis_closePrice` (IN `commodity` VARCHAR(100), IN `daycount` INT, IN `inputprices` TEXT, IN `diff` DOUBLE, IN `page_count` INT, IN `rows_count` INT)  BEGIN
+CREATE PROCEDURE `sp_detailed_fifteenth_analysis_closePrice` (IN `commodity` VARCHAR(100), IN `daycount` INT, IN `inputprices` TEXT, IN `diff` DOUBLE, IN `page_count` INT, IN `rows_count` INT,IN sell_month_str varchar(1))  BEGIN
 
 declare pagelimit int default 1; # initialize the page limit which will change as per user define
 declare i int UNSIGNED default 0; # initializing the Incremental value for creating select and where clause string from user defined table
@@ -102,14 +102,16 @@ between ',@minlimit2,' and ',@maxlimit2,' and ',
 (((s',i,'.closed_price - s',daycount,'.closed_price)/s',daycount,'.closed_price)*100) between
 ',@minlimit4,' and ',@maxlimit4,' and');
 
-
+if sell_month_str!='' THEN
+set @wherelist4=CONCAT(@wherelist4,' s',i,'.sellmonth="',sell_month_str,'" and');
+end if;
 
 END WHILE;
 
 # start extra row count from here. This is for getting the last day closeup, closedown and close ecual calculation
-
-
 set @wherelist1=CONCAT(@wherelist1,'s',i,'.','id+1=s',i+1,'.','id and ');
+
+
 set i=daycount+1;
 set @table_name=CONCAT(@table_name,commodity,' s',i,',');
 set @table_name=SUBSTRING(@table_name,1,CHAR_LENGTH(@table_name)-1);
