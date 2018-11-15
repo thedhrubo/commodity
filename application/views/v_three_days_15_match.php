@@ -13,16 +13,16 @@
         }
     </style>
     <section id="services" class="section section-padded">
-        <div class="col-md-6 col-md-offset-3">
+        
 
             <form action="<?php echo site_url("welcome/three_days_15_match_action") ?>" method="post" target="_blank" id="full_analysis">
                 <a href="javascript:" onclick="removeDay()" class="btn-sm btn-danger pull-right"><span class="fa fa-minus"></span> Remove Day</a>
                 <a href="javascript:" onclick="addNewDay()" class="btn-sm btn-primary pull-right"><span class="fa fa-plus"></span> Add Day</a>
                 <a href="javascript:" onclick="document.getElementById('full_analysis').reset();" class="btn-sm btn-danger pull-right"><span class="fa fa-close"></span> Clear Values</a>    
                 <?php require_once 'elements/formFields3days.php'; ?>
-                <button style="width:100%" type="submit" class="btn btn-primary active" >3 Days 15 Match Analysis</button>
+                <button type="submit" class="btn btn-primary active" >3 Days 15 Match Analysis</button>
             </form>
-        </div>
+        
     </section>
 
     <script>
