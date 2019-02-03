@@ -97,46 +97,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $db['default']['dbdriver'] = 'mysqli';
 
+
+
 $active_group = ENVIRONMENT;
 $active_record = TRUE;
 
-$db['development']['hostname'] = 'localhost';
-$db['development']['username'] = 'root';
-$db['development']['password'] = '';
-$db['development']['database'] = 'data';
-$db['development']['dbdriver'] = 'mysqli';
-$db['development']['dbprefix'] = '';
-$db['development']['pconnect'] = TRUE;
-$db['development']['db_debug'] = TRUE;
-$db['development']['cache_on'] = FALSE;
-$db['development']['cachedir'] = '';
-$db['development']['char_set'] = 'utf8';
-$db['development']['dbcollat'] = 'utf8_general_ci';
-$db['development']['swap_pre'] = '';
-$db['development']['autoinit'] = TRUE;
-$db['development']['stricton'] = FALSE;
-
-
-$db['testing']['hostname'] = 'localhost';
-$db['testing']['username'] = 'axizcom2_shaheen';
-$db['testing']['password'] = 'shaheen';
-$db['testing']['database'] = 'axizcom2_efindbook';
-$db['testing']['dbdriver'] = 'mysqli';
-$db['testing']['dbprefix'] = '';
-$db['testing']['pconnect'] = TRUE;
-$db['testing']['db_debug'] = TRUE;
-$db['testing']['cache_on'] = FALSE;
-$db['testing']['cachedir'] = '';
-$db['default']['char_set'] = 'utf8';
-$db['testing']['dbcollat'] = 'utf8_general_ci';
-$db['testing']['swap_pre'] = '';
-$db['testing']['autoinit'] = TRUE;
-$db['testing']['stricton'] = FALSE;
-
-$db['production']['hostname'] = 'localhost';
-$db['production']['username'] = 'bowmantrading';
-$db['production']['password'] = 'Bowmantrading@net1';
-$db['production']['database'] = 'data_analysis';
+if(ENVIRONMENT == "production"){
+    require_once("/home/bowmantrading1/external_includes/mysql_pw.php");
+    $db['production']['hostname'] = $DBserver;
+$db['production']['username'] = $DBuser;
+$db['production']['password'] = $DBpassword;
+$db['production']['database'] = $DBname;
 $db['production']['dbdriver'] = 'mysqli';
 $db['production']['db_debug'] = TRUE;
 $db['production']['dbprefix'] = '';
@@ -149,4 +120,42 @@ $db['production']['dbcollat'] = 'utf8_general_ci';
 $db['production']['swap_pre'] = '';
 $db['production']['autoinit'] = TRUE;
 $db['production']['stricton'] = FALSE;
+}else{
+    $db['development']['hostname'] = "localhost";
+    $db['development']['username'] = "root";
+    $db['development']['password'] = "";
+    $db['development']['database'] = "data_analysis"; 
+    $db['development']['dbdriver'] = 'mysqli';
+    $db['development']['dbprefix'] = '';
+    $db['development']['pconnect'] = TRUE;
+    $db['development']['db_debug'] = TRUE;
+    $db['development']['cache_on'] = FALSE;
+    $db['development']['cachedir'] = '';
+    $db['development']['char_set'] = 'utf8';
+    $db['development']['dbcollat'] = 'utf8_general_ci';
+    $db['development']['swap_pre'] = '';
+    $db['development']['autoinit'] = TRUE;
+    $db['development']['stricton'] = FALSE;
+    
+    
+    $db['testing']['hostname'] = 'localhost';
+    $db['testing']['username'] = 'axizcom2_shaheen';
+    $db['testing']['password'] = 'shaheen';
+    $db['testing']['database'] = 'axizcom2_efindbook';
+    $db['testing']['dbdriver'] = 'mysqli';
+    $db['testing']['dbprefix'] = '';
+    $db['testing']['pconnect'] = TRUE;
+    $db['testing']['db_debug'] = TRUE;
+    $db['testing']['cache_on'] = FALSE;
+    $db['testing']['cachedir'] = '';
+    $db['default']['char_set'] = 'utf8';
+    $db['testing']['dbcollat'] = 'utf8_general_ci';
+    $db['testing']['swap_pre'] = '';
+    $db['testing']['autoinit'] = TRUE;
+    $db['testing']['stricton'] = FALSE;
+}
+
+
+
+
 
